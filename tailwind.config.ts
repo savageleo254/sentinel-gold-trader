@@ -31,6 +31,14 @@ export default {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
         },
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
+        },
         muted: {
           DEFAULT: "hsl(var(--muted))",
           foreground: "hsl(var(--muted-foreground))",
@@ -57,6 +65,29 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        // Trading specific colors
+        buy: "hsl(var(--buy))",
+        sell: "hsl(var(--sell))",
+        neutral: "hsl(var(--neutral))",
+        profit: "hsl(var(--profit))",
+        loss: "hsl(var(--loss))",
+        breakeven: "hsl(var(--breakeven))",
+        // AI Signal colors
+        "ai-strong": "hsl(var(--ai-strong))",
+        "ai-medium": "hsl(var(--ai-medium))",
+        "ai-weak": "hsl(var(--ai-weak))",
+      },
+      backgroundImage: {
+        "gradient-gold": "var(--gradient-gold)",
+        "gradient-terminal": "var(--gradient-terminal)",
+        "gradient-ai": "var(--gradient-ai)",
+      },
+      boxShadow: {
+        "glow-gold": "var(--glow-gold)",
+        "glow-ai": "var(--glow-ai)",
+      },
+      transitionProperty: {
+        "smooth": "var(--transition-smooth)",
       },
       borderRadius: {
         lg: "var(--radius)",
