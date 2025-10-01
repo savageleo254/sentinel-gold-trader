@@ -13,7 +13,8 @@ import { ModelSelector } from "@/components/ai/ModelSelector";
 import { SystemMetrics } from "@/components/system/SystemMetrics";
 import { Activity, Brain, Shield, TrendingUp, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
+import { useInitializeSystem } from "@/hooks/useInitializeSystem";
 
 interface MarketData {
   symbol: string;
@@ -25,6 +26,7 @@ interface MarketData {
 
 const Index = () => {
   const { toast } = useToast();
+  const { initialized, initializing } = useInitializeSystem();
   const [marketData, setMarketData] = useState<MarketData | null>(null);
   const [systemStatus, setSystemStatus] = useState({
     mt5Connected: false,

@@ -1,0 +1,7 @@
+MetaTrader5==5.0.45
+supabase==2.10.0
+python-dotenv==1.0.1
+requests==2.32.3
+beautifulsoup4==4.12.3
+pandas==2.2.3
+numpy==2.1.3
