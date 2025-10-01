@@ -149,6 +149,81 @@ export type Database = {
         }
         Relationships: []
       }
+      news_analysis: {
+        Row: {
+          analysis_time: string
+          confidence: number | null
+          created_at: string
+          id: string
+          key_factors: Json | null
+          market_direction: string | null
+          news_count: number
+          sentiment_score: number | null
+          source_data: Json | null
+        }
+        Insert: {
+          analysis_time?: string
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          key_factors?: Json | null
+          market_direction?: string | null
+          news_count?: number
+          sentiment_score?: number | null
+          source_data?: Json | null
+        }
+        Update: {
+          analysis_time?: string
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          key_factors?: Json | null
+          market_direction?: string | null
+          news_count?: number
+          sentiment_score?: number | null
+          source_data?: Json | null
+        }
+        Relationships: []
+      }
+      news_events: {
+        Row: {
+          category: string | null
+          content: string | null
+          created_at: string
+          id: string
+          impact: string
+          published_at: string
+          source: string
+          symbols: string[] | null
+          title: string
+          url: string | null
+        }
+        Insert: {
+          category?: string | null
+          content?: string | null
+          created_at?: string
+          id?: string
+          impact?: string
+          published_at: string
+          source: string
+          symbols?: string[] | null
+          title: string
+          url?: string | null
+        }
+        Update: {
+          category?: string | null
+          content?: string | null
+          created_at?: string
+          id?: string
+          impact?: string
+          published_at?: string
+          source?: string
+          symbols?: string[] | null
+          title?: string
+          url?: string | null
+        }
+        Relationships: []
+      }
       performance_metrics: {
         Row: {
           average_trade: number | null
