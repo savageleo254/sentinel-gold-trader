@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.init-system]
 verify_jwt = false
+
+[functions.model-trainer]
+verify_jwt = false

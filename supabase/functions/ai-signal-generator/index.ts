@@ -110,91 +110,165 @@ serve(async (req) => {
   }
 });
 
-async function generateTradingSignal(marketData: any[], newsData: any[], model: string) {
-  const latest = marketData[0];
-  const previous = marketData.slice(1, 21); // Last 20 candles
-  
-  // Technical indicators
-  const sma20 = calculateSMA(marketData.slice(0, 20));
-  const rsi = calculateRSI(marketData.slice(0, 14));
-  const macd = calculateMACD(marketData.slice(0, 26));
-  
-  // Market structure analysis
-  const trend = analyzeTrend(marketData.slice(0, 50));
-  const support = findSupport(marketData.slice(0, 100));
-  const resistance = findResistance(marketData.slice(0, 100));
-  
-  // News sentiment score
-  const newsSentiment = calculateNewsSentiment(newsData);
-  
-  // Features for AI model
-  const features = {
-    price_action: {
-      current_price: latest.close_price,
-      sma20_distance: (latest.close_price - sma20) / sma20,
-      rsi,
-      macd_signal: macd.signal,
-      macd_histogram: macd.histogram
-    },
-    market_structure: {
-      trend_strength: trend.strength,
-      trend_direction: trend.direction,
-      support_distance: (latest.close_price - support) / latest.close_price,
-      resistance_distance: (resistance - latest.close_price) / latest.close_price
-    },
-    news_sentiment: newsSentiment,
-    volatility: calculateVolatility(marketData.slice(0, 20)),
-    volume_profile: calculateVolumeProfile(marketData.slice(0, 20))
-  };
-
-  // AI decision logic based on features
-  let signalType = 'HOLD';
-  let confidence = 0.5;
-  let entryPrice = latest.close_price;
-  let stopLoss = entryPrice;
-  let takeProfit = entryPrice;
-  
-  // HRM (High Risk Management) Scalping Strategy
-  const scalping_conditions = analyzeScalpingConditions(features);
-  
-  if (scalping_conditions.bullish_signal && confidence > 0.75) {
-    signalType = 'BUY';
-    confidence = Math.min(0.95, scalping_conditions.strength);
-    entryPrice = latest.ask || latest.close_price + 0.10;
-    stopLoss = entryPrice - (entryPrice * 0.001); // 0.1% SL
-    takeProfit = entryPrice + (entryPrice * 0.0025); // 0.25% TP (1:2.5 RR)
-  } else if (scalping_conditions.bearish_signal && confidence > 0.75) {
-    signalType = 'SELL';
-    confidence = Math.min(0.95, scalping_conditions.strength);
-    entryPrice = latest.bid || latest.close_price - 0.10;
-    stopLoss = entryPrice + (entryPrice * 0.001); // 0.1% SL
-    takeProfit = entryPrice - (entryPrice * 0.0025); // 0.25% TP (1:2.5 RR)
+async function generateTradingSignal(
+  marketData: any[],
+  newsEvents: any[],
+  symbol: string,
+  timeframe: string,
+  modelId?: string
+): Promise<any> {
+  if (marketData.length < 50) {
+    throw new Error('Insufficient market data for signal generation');
   }
 
-  // Position sizing based on risk
-  const accountBalance = 10000; // Get from account
-  const riskPerTrade = 0.01; // 1% risk per trade
-  const riskAmount = accountBalance * riskPerTrade;
+  // Fetch trained model weights
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabase = createClient(supabaseUrl, supabaseKey);
+
+  let modelWeights = null;
+  if (modelId) {
+    const { data: model } = await supabase
+      .from('ai_models')
+      .select('parameters, performance_metrics')
+      .eq('id', modelId)
+      .single();
+    
+    if (model && model.parameters) {
+      modelWeights = model.parameters;
+      console.log('Using trained model weights:', modelWeights);
+    }
+  }
+
+  // Calculate technical indicators
+  const latestBar = marketData[marketData.length - 1];
+  const closes = marketData.map(d => d.close_price);
+  const highs = marketData.map(d => d.high_price);
+  const lows = marketData.map(d => d.low_price);
+  const volumes = marketData.map(d => d.volume);
+
+  // Technical Analysis
+  const sma20 = calculateSMA(closes, 20);
+  const sma50 = calculateSMA(closes, 50);
+  const rsi = calculateRSI(closes, 14);
+  const macd = calculateMACD(closes);
+  
+  // Market Structure
+  const trend = analyzeTrend(closes);
+  const support = findSupport(lows);
+  const resistance = findResistance(highs);
+  const volatility = calculateVolatility(closes);
+  const volumeProfile = calculateVolumeProfile(volumes);
+
+  // News Sentiment
+  const newsSentiment = calculateNewsSentiment(newsEvents);
+
+  // Compile features for AI model
+  const features = {
+    price: latestBar.close_price,
+    sma20,
+    sma50,
+    sma_signal: (latestBar.close_price - sma20) / sma20,
+    rsi,
+    macd_line: macd.macd,
+    macd_signal: macd.signal,
+    macd_histogram: macd.histogram,
+    trend,
+    trend_strength: (sma20 - sma50) / sma50,
+    support,
+    resistance,
+    distance_to_support: (latestBar.close_price - support) / support,
+    distance_to_resistance: (resistance - latestBar.close_price) / latestBar.close_price,
+    volatility,
+    volumeProfile,
+    volume_ratio: latestBar.volume / (volumes.reduce((a, b) => a + b, 0) / volumes.length),
+    newsSentiment,
+    timestamp: latestBar.timestamp,
+  };
+
+  // Use trained model for prediction if available
+  let confidence = 0.5;
+  let signalType = 'HOLD';
+
+  if (modelWeights) {
+    // Use trained model weights for prediction
+    const prediction = predictWithModel(features, modelWeights);
+    confidence = Math.abs(prediction - 0.5) * 2; // Convert to 0-1 scale
+    
+    if (prediction > 0.6) {
+      signalType = 'BUY';
+      confidence = (prediction - 0.5) * 2;
+    } else if (prediction < 0.4) {
+      signalType = 'SELL';
+      confidence = (0.5 - prediction) * 2;
+    } else {
+      signalType = 'HOLD';
+      confidence = 0.5;
+    }
+
+    console.log(`Model prediction: ${prediction.toFixed(4)}, Signal: ${signalType}, Confidence: ${(confidence * 100).toFixed(2)}%`);
+  } else {
+    // Fallback to rule-based HRM scalping strategy
+    const scalpingSignal = analyzeScalpingConditions(features, latestBar);
+    return scalpingSignal;
+  }
+
+  // Calculate entry, stop loss, and take profit based on signal
+  const atr = volatility;
+  let entryPrice = latestBar.close_price;
+  let stopLoss = 0;
+  let takeProfit = 0;
+
+  if (signalType === 'BUY') {
+    entryPrice = latestBar.close_price + (atr * 0.1);
+    stopLoss = entryPrice - (atr * 2);
+    takeProfit = entryPrice + (atr * 3);
+  } else if (signalType === 'SELL') {
+    entryPrice = latestBar.close_price - (atr * 0.1);
+    stopLoss = entryPrice + (atr * 2);
+    takeProfit = entryPrice - (atr * 3);
+  }
+
+  // Calculate position size (2% risk per trade)
+  const riskAmount = 1000; // Assume $1000 account for now
+  const riskPerTrade = riskAmount * 0.02;
   const stopLossDistance = Math.abs(entryPrice - stopLoss);
-  const positionSize = riskAmount / stopLossDistance;
+  const positionSize = stopLossDistance > 0 ? riskPerTrade / stopLossDistance : 0.01;
 
   return {
-    type: signalType,
-    confidence: Number(confidence.toFixed(3)),
-    entryPrice: Number(entryPrice.toFixed(2)),
-    stopLoss: Number(stopLoss.toFixed(2)),
-    takeProfit: Number(takeProfit.toFixed(2)),
-    positionSize: Number(positionSize.toFixed(2)),
-    riskReward: Number(((takeProfit - entryPrice) / (entryPrice - stopLoss)).toFixed(2)),
-    marketCondition: trend.direction,
+    signal_type: signalType,
+    confidence: Math.min(Math.max(confidence, 0), 1),
+    entry_price: entryPrice,
+    stop_loss: stopLoss,
+    take_profit: takeProfit,
+    position_size: Math.max(0.01, Math.min(positionSize, 1.0)),
     features,
-    prediction: {
-      model_used: model,
-      confidence_breakdown: scalping_conditions,
-      technical_score: (rsi + macd.signal + trend.strength) / 3,
-      fundamental_score: newsSentiment
-    }
+    model_prediction: {
+      raw_score: confidence,
+      model_id: modelId,
+      model_weights_used: modelWeights !== null,
+    },
   };
+}
+
+function predictWithModel(features: any, weights: any): number {
+  let score = weights.bias || 0;
+  
+  score += (features.sma_signal || 0) * (weights.sma_fast_weight || 0);
+  score += (features.trend_strength || 0) * (weights.trend_weight || 0);
+  score += (features.macd_histogram || 0) * (weights.macd_signal_weight || 0);
+  score += (features.volume_ratio || 0) * (weights.volume_weight || 0);
+  score += (features.distance_to_support || 0) * (weights.support_resistance_weight || 0);
+
+  // RSI contribution
+  if (features.rsi > (weights.rsi_overbought_threshold || 70)) {
+    score -= 0.5;
+  } else if (features.rsi < (weights.rsi_oversold_threshold || 30)) {
+    score += 0.5;
+  }
+
+  // Sigmoid activation
+  return 1 / (1 + Math.exp(-score));
 }
 
 // Technical Analysis Functions

@@ -60,7 +60,7 @@ export const ModelSelector = () => {
     await supabase
       .from('ai_models')
       .update({ is_active: false })
-      .neq('id', '00000000-0000-0000-0000-000000000000'); // Exclude dummy condition
+      .neq('id', '00000000-0000-0000-0000-000000000000');
 
     // Activate selected model
     await supabase
@@ -70,11 +70,54 @@ export const ModelSelector = () => {
 
     const selectedModel = models.find(m => m.id === modelId);
     if (selectedModel) {
+      const metrics = selectedModel.performance_metrics as any;
       setModelPerformance({
         accuracy: (selectedModel.winrate || 0) * 100,
-        speed: Math.random() * 100,
+        speed: metrics?.training_accuracy ? 
+               (metrics.training_accuracy * 100) : 85,
         efficiency: ((selectedModel.sharpe_ratio || 0) + 2) * 25,
       });
+    }
+  };
+
+  const handleRetrain = async () => {
+    if (!activeModel) return;
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('model-trainer', {
+        body: { 
+          modelId: activeModel,
+          symbol: 'XAUUSD',
+          timeframe: '15min',
+          epochs: 50 
+        }
+      });
+
+      if (error) throw error;
+
+      console.log('Model retrained successfully:', data);
+      
+      // Refresh models
+      const { data: updatedModels } = await supabase
+        .from('ai_models')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (updatedModels) {
+        setModels(updatedModels);
+        const retrainedModel = updatedModels.find(m => m.id === activeModel);
+        if (retrainedModel) {
+          const metrics = retrainedModel.performance_metrics as any;
+          setModelPerformance({
+            accuracy: (retrainedModel.winrate || 0) * 100,
+            speed: metrics?.training_accuracy ?
+                   (metrics.training_accuracy * 100) : 85,
+            efficiency: ((retrainedModel.sharpe_ratio || 0) + 2) * 25,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Retraining error:', error);
     }
   };
 
@@ -193,7 +236,7 @@ export const ModelSelector = () => {
             <Settings className="h-3 w-3 mr-1" />
             Configure
           </Button>
-          <Button size="sm" variant="outline" className="flex-1">
+          <Button size="sm" variant="outline" className="flex-1" onClick={handleRetrain}>
             <Zap className="h-3 w-3 mr-1" />
             Retrain
           </Button>
