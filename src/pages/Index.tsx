@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { TradingChart } from "@/components/trading/TradingChart";
+import { TradingViewChart } from "@/components/trading/TradingViewChart";
 import { AISignalPanel } from "@/components/ai/AISignalPanel";
 import { RiskMonitor } from "@/components/risk/RiskMonitor";
 import { NewsPanel } from "@/components/news/NewsPanel";
@@ -15,6 +15,7 @@ import { Activity, Brain, Shield, TrendingUp, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useInitializeSystem } from "@/hooks/useInitializeSystem";
+import { useMarketDataSync } from "@/hooks/useMarketDataSync";
 
 interface MarketData {
   symbol: string;
@@ -26,7 +27,8 @@ interface MarketData {
 
 const Index = () => {
   const { toast } = useToast();
-  const { initialized, initializing } = useInitializeSystem();
+  useInitializeSystem();
+  useMarketDataSync();
   const [marketData, setMarketData] = useState<MarketData | null>(null);
   const [systemStatus, setSystemStatus] = useState({
     mt5Connected: false,
@@ -145,7 +147,7 @@ const Index = () => {
       <div className="grid grid-cols-12 gap-4">
         {/* Trading Chart - Main Area */}
         <div className="col-span-8">
-          <TradingChart />
+          <TradingViewChart />
         </div>
 
         {/* AI Signals & Controls */}

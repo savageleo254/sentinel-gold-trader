@@ -33,14 +33,29 @@ serve(async (req) => {
       is_active: true
     };
     
-    const { data: account, error: accountError } = await supabase
+    // Check if default account exists (without user_id for system account)
+    const { data: existingAccount } = await supabase
       .from('trading_accounts')
-      .upsert(accountData, { onConflict: 'account_number' })
-      .select()
-      .single();
+      .select('*')
+      .eq('account_number', '103936248')
+      .maybeSingle();
     
-    if (accountError) throw accountError;
-    console.log('Trading account initialized');
+    let account;
+    if (existingAccount) {
+      account = existingAccount;
+      console.log('Using existing account:', existingAccount.id);
+    } else {
+      // Use upsert which works better with RLS
+      const { data: newAccount, error: upsertError } = await supabase
+        .from('trading_accounts')
+        .upsert(accountData, { onConflict: 'account_number' })
+        .select()
+        .single();
+      
+      if (upsertError) throw upsertError;
+      account = newAccount;
+      console.log('Created account:', newAccount?.id);
+    }
     
     // 2. Create default AI models
     const aiModels = [

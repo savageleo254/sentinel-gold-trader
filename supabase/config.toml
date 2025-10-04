@@ -15,5 +15,8 @@ verify_jwt = false
 [functions.risk-calculator]
 verify_jwt = false
 
+[functions.market-data-api]
+verify_jwt = false
+
 [functions.init-system]
 verify_jwt = false
